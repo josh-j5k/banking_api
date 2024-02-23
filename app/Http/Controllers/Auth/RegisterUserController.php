@@ -4,13 +4,9 @@ namespace App\Http\Controllers\Auth;
 
 use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rules;
 use App\Http\Controllers\Controller;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Http\RedirectResponse;
-use Illuminate\Auth\Events\Registered;
-use App\Providers\RouteServiceProvider;
+
 use Symfony\Component\HttpFoundation\Response;
 
 class RegisterUserController extends Controller

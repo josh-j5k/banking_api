@@ -2,11 +2,14 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Resources\TransferHistoryResource;
 use App\Models\BankAccount;
-use App\Models\TransferHistory;
 use Illuminate\Http\Request;
+use App\Models\TransferHistory;
 use Symfony\Component\HttpFoundation\Response;
+use App\Http\Resources\TransferHistoryResource;
+
+use App\Models\User;
+
 
 class BankAccountController extends Controller
 {
@@ -22,12 +25,13 @@ class BankAccountController extends Controller
         return $account_number;
     }
 
-    private function accountDetails($id, $account_holder, $account_number, $email, $account_balance, $created_at)
+    private function accountDetails($id, $account_holder, $account_number, $email, $account_balance, $account_type, $created_at)
     {
         $account_details =  [
             'id' => $id,
             'Account Holder' => $account_holder,
             'Account Number' => $account_number,
+            'Account Type' => $account_type,
             'Email' => $email,
             'Account Balance' => $account_balance,
             'Created At' => $created_at,
@@ -38,9 +42,10 @@ class BankAccountController extends Controller
     {
 
         $details = $request->validate([
-            "account holder" => ["required", "string"],
+            'id' => ['required', 'string'],
+            "account_holder" => ["required", "string"],
             "email" => ["required", "string", 'email'],
-            "account type" => ["required", "string"],
+            "account_type" => ["required", "string"],
 
         ]);
         /*
@@ -55,20 +60,56 @@ class BankAccountController extends Controller
         if (BankAccount::where('account_number', $account_number)->first()) {
             $account_number = $this->createBankAccount();
         }
+        /*
+        * check if user already have an account of same type
+        */
+        $account_exist = BankAccount::where([
+            ['account_holder', '=', $details['account_holder']],
+            ['account_type', '=', $details['account_type']],
+        ])->get();
+        if (count($account_exist) > 0) {
+            return response()->json([
+                'message' => 'Account holder already has an account of same type',
 
-        $account = BankAccount::create([
-            'account_number' => $account_number,
-            'account_holder' => $details['account holder'],
-            'account_type' => $details['account type'],
-            'email' => $details['email'],
-        ]);
+            ], Response::HTTP_NOT_ACCEPTABLE);
+        }
+        /*
+        * Get the user creating the account 
+        */
+        $user = User::find($request->id);
+        /*
+        * populate db 
+        */
+        if ($user->isAdmin) {
+            $account = BankAccount::create([
+                'account_number' => $account_number,
+                'account_holder' => $details['account_holder'],
+                'account_type' => $details['account_type'],
+                'email' => $details['email'],
+            ]);
+        } else {
+            $account = BankAccount::create([
+                'account_number' => $account_number,
+                'account_holder' => $details['account_holder'],
+                'account_type' => $details['account_type'],
+                'email' => $details['email'],
+                'user_id' => $request->id,
+            ]);
+        }
         return response()->json([
-            'account_details' => $this->accountDetails($account->id, $account->account_holder, $account->account_number, $account->email, $account->account_balance, $account->created_at),
+            'account_details' => $this->accountDetails($account->id, $account->account_holder, $account->account_number, $account->email, $account->account_balance, $account->account_type, $account->created_at),
         ], 200);
     }
 
     public function updateBalance(Request $request): Response
     {
+        $id = $request->id;
+        $user = User::find($id);
+        if (!$user || !$user->isAdmin) {
+            return response()->json([
+                'error' => 'unauthorized',
+            ], Response::HTTP_UNAUTHORIZED);
+        }
         $details = $request->validate([
             'account_holder' => ['required', 'string'],
             'account_number' => ['required'],
@@ -79,24 +120,45 @@ class BankAccountController extends Controller
         $account = BankAccount::where('account_number', $account_number)->first();
         $account->update(['account_balance' => intval($account_balance)]);
         return response()->json([
-            'account_details' => $this->accountDetails($account->id, $account->account_holder, $account->account_number, $account->email, $account->account_balance, $account->created_at)
+            'account_details' => $this->accountDetails($account->id, $account->account_holder, $account->account_number, $account->email, $account->account_balance, $account->account_type, $account->created_at)
         ], 200);
     }
 
     public function transfer(Request $request): Response
     {
+        $id = $request->id;
+        $user = User::find($id);
         /*
+        *   Check if request is from teller or customer
+        */
+        if ($user->isAdmin) {
+            /*
         *Verify transfer details
         */
-        $details = $request->validate([
-            'id' => ['required', 'string'],
-            'receivers_name' => ['required', 'string'],
-            'receivers_account_number' => ['required'],
-            'amount' => ['required']
-        ]);
+            $details = $request->validate([
+                'id' => ['required', 'string'],
+                'receivers_name' => ['required', 'string'],
+                'receivers_account_number' => ['required'],
+                'senders_name' => ['required', 'string'],
+                'senders_account_number' => ['required', 'string'],
+                'amount' => ['required']
+            ]);
+        } else {
+            /*
+        *Verify transfer details
+        */
+            $details = $request->validate([
+                'id' => ['required', 'string'],
+                'receivers_name' => ['required', 'string'],
+                'receivers_account_number' => ['required'],
+                'senders_account_number' => ['required', 'string'],
+                'amount' => ['required']
+            ]);
+        }
+        $sender = BankAccount::where('account_number', $details['senders_account_number'])->first();
         $amount = intval($details['amount']);
-        $sender = BankAccount::find($details['id']);
-        $receiver = BankAccount::where('account_number', $details['receivers_account_number']);
+
+        $receiver = BankAccount::where('account_number', $details['receivers_account_number'])->first();
         /*
         * Check if receiver's account is valid
         */
@@ -105,6 +167,12 @@ class BankAccountController extends Controller
                 'message' => 'wrong credentials',
             ], 406);
         }
+        if ($details['senders_account_number'] === $details['receivers_account_number']) {
+            return response()->json([
+                'message' => "sender's account number can't be same with receiver's account number"
+            ], 406);
+        }
+
         $receivers_balance = $receiver->account_balance;
         $senders_balance = $sender->account_balance;
         /*
@@ -115,13 +183,16 @@ class BankAccountController extends Controller
                 'message' => 'insufficient funds'
             ], Response::HTTP_NOT_ACCEPTABLE);
         }
-        $receivers_current_balance = $receivers_balance + $amount;
-        $senders_current_balance = $senders_balance - $amount;
+
+
+        $receivers_new_balance = $receivers_balance + $amount;
+        $senders_new_balance = $senders_balance - $amount;
         /*
-    * Update sender's and receiver's account to reflect current balance
+    * Update sender's and receiver's account to reflect new balance
     */
-        $sender->update(['account_balance' => $senders_current_balance]);
-        $receiver->update(['account_balance' => $receivers_current_balance]);
+
+        $sender->update(['account_balance' => $senders_new_balance]);
+        $receiver->update(['account_balance' => $receivers_new_balance]);
         /*
     * Create transfer history for sender
     */
@@ -129,7 +200,7 @@ class BankAccountController extends Controller
             'amount' => $amount,
             'receivers_name' => $details['receivers_name'],
             'receivers_account_number' => $details['receivers_account_number'],
-            'bank_account_id' => $details['id'],
+            'bank_account_id' => $sender->id,
         ]);
         return response()->json([
             'message' => 'transfer successful'
@@ -151,7 +222,7 @@ class BankAccountController extends Controller
 
     public function retrieveHistory(Request $request): Response
     {
-        $transfer_history = TransferHistoryResource::collection(TransferHistory::where('bank_account_id', $request->id));
+        $transfer_history = TransferHistoryResource::collection(TransferHistory::where('bank_account_id', $request->id)->get());
 
         return response()->json([
             'transfer_history' => $transfer_history

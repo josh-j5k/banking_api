@@ -17,6 +17,7 @@ class BankAccount extends Model
         'email',
         'account_holder',
         'account_balance',
+        'user_id'
     ];
 
 

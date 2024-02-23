@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Auth;
 
 use App\Models\User;
 use Illuminate\Http\Request;
-use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -27,6 +26,7 @@ class AuthenticatedSessionController extends Controller
         if (!$user || !Hash::check($validate["password"], $user->password)) {
             return response()->json(["message" => "invalid credentials"], Response::HTTP_FORBIDDEN);
         }
+
         $token = $user->createToken('userToken')->plainTextToken;
         $response = [
             'user' => [
@@ -46,6 +46,7 @@ class AuthenticatedSessionController extends Controller
 
     public function destroy(Request $request)
     {
+
         $email = Auth::user()->email;
         $user = User::where('email', $email)->first();
         $user->tokens()->delete();

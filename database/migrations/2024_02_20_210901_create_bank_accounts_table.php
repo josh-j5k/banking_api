@@ -18,7 +18,7 @@ return new class extends Migration
             $table->string('email');
             $table->bigInteger('account_number');
             $table->tinyText('account_type');
-            $table->bigInteger('account_balance')->default(0);
+            $table->bigInteger('account_balance')->default(0.00);
             $table->foreignIdFor(User::class, 'user_id')->nullable();
             $table->timestamps();
         });

@@ -14,12 +14,13 @@ class ApiKeyMiddlewear
      *
      * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
      */
-    public function handle(Request $request, Closure $next)
+    public function handle(Request $request, Closure $next): Response
 
     {
-        $key = $request->get('api_key');
+        $key = $request->header('API-Key');
         if (!$key || $key !== config('app.api_key')) {
             throw new AuthenticationException('Wrong api key');
         }
+        return $next($request);
     }
 }

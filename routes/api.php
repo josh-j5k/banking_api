@@ -22,9 +22,9 @@ Route::group(['middleware' => ['auth:sanctum']], function () {
     Route::post('/logout', [
         AuthenticatedSessionController::class, 'destroy'
     ]);
-    Route::post('/create_account', [BankAccountController::class, 'store']);
-    Route::patch('update_balance', [BankAccountController::class, 'updateBalance']);
+    Route::post('/create-account', [BankAccountController::class, 'store']);
+    Route::patch('update-balance', [BankAccountController::class, 'updateBalance']);
     Route::post('/transfer', [BankAccountController::class, 'transfer']);
-    Route::post('/retrieve_history', [BankAccountController::class, 'retrieveHistory']);
-    Route::post('/retrieve_balance', [BankAccountController::class, 'retrieveBalance']);
+    Route::post('/retrieve-history', [BankAccountController::class, 'retrieveHistory']);
+    Route::post('/retrieve-balance', [BankAccountController::class, 'retrieveBalance']);
 });

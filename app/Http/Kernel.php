@@ -43,8 +43,7 @@ class Kernel extends HttpKernel
             \Illuminate\Routing\Middleware\ThrottleRequests::class . ':api',
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
             \App\Http\Middleware\ApiKeyMiddlewear::class,
-            'throttle:300,1',
-            'bindings',
+
         ],
     ];
 

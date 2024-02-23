@@ -15,7 +15,7 @@ return new class extends Migration
         Schema::create('transfer_history', function (Blueprint $table) {
             $table->id();
             $table->bigInteger('amount');
-            $table->string('receiver_name');
+            $table->string('receivers_name');
             $table->string('receivers_account_number');
             $table->foreignIdFor(BankAccount::class, 'bank_account_id');
             $table->timestamps();

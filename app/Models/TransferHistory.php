@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 class TransferHistory extends Model
 {
     use HasFactory;
+    protected $table = 'transfer_history';
     protected $fillable = [
         'amount',
         'receivers_name',
